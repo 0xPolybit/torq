@@ -1,26 +1,26 @@
-"""Daemon lifecycle (PLAN §15).
+"""Daemon lifecycle (PLAN §15-§16).
 
-A :class:`Daemon` ties the engine, event bus, database, and resume
-store together. The lifecycle is intentionally small:
+A :class:`Daemon` ties the engine, event bus, database, resume
+store, and HTTP API together. The lifecycle is:
 
 - :meth:`Daemon.start` acquires the single-instance lock, opens
-  the database, applies migrations, and loads the resume store.
-- :meth:`Daemon.stop` flushes the resume store, closes the
-  database, and releases the lock.
-
-The HTTP API (slice 0.16) and the alert-pump loop are wired in
-separately. The daemon here is the boot/shutdown skeleton the
-rest of the runtime hangs off of.
+  the database, applies migrations, loads the resume store,
+  provisions a bearer token, and binds the loopback HTTP server.
+- :meth:`Daemon.stop` flushes the resume store, stops the HTTP
+  server, closes the database, and releases the lock.
 """
 
 from __future__ import annotations
 
 import contextlib
+import logging
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from torq.api.auth import TokenStore
+from torq.api.server import APIServer, ServerConfig
 from torq.config import Config as TorqConfig
 from torq.daemon.locks import LockHeldError, PidLock
 from torq.db import init as init_db
@@ -29,6 +29,9 @@ from torq.resume import ResumeEntry, ResumeStore
 if TYPE_CHECKING:
     from torq.events.bus import EventBus
     from torq.torrents.engine import TorrentEngine
+
+
+_LOG = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -42,6 +45,7 @@ class DaemonPaths:
     db_path: Path
     resume_path: Path
     lock_path: Path
+    token_path: Path
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -54,6 +58,8 @@ class DaemonContext:
     event_bus: EventBus
     db: sqlite3.Connection
     resume: ResumeStore
+    tokens: TokenStore
+    api: APIServer
     lock: PidLock = field(default_factory=lambda: PidLock(Path("/dev/null")))
     started_at: int = 0
 
@@ -109,13 +115,33 @@ class Daemon:
         db = sqlite3.connect(str(self._paths.db_path), isolation_level=None)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys = ON")
-        # Best-effort: surface the schema version on the bus later when an
-        # event bus is wired in. For now, a debug log will suffice.
         del version
 
         resume = ResumeStore(self._paths.resume_path)
-        # Touch the resume store so any read errors surface here, not later.
         resume.load()
+
+        tokens = TokenStore(self._paths.token_path)
+        if tokens.path.exists():
+            tokens.load()
+        else:
+            tokens.provision(length=self._config.daemon.token_length)
+
+        api = APIServer(
+            config=ServerConfig(
+                host=self._config.daemon.host,
+                port=self._config.daemon.port,
+            ),
+            engine=self._engine,
+            event_bus=self._bus,
+            tokens=tokens,
+        )
+        try:
+            await api.start()
+        except Exception:
+            lock.release()
+            with contextlib.suppress(sqlite3.ProgrammingError):
+                db.close()
+            raise
 
         self._context = DaemonContext(
             paths=self._paths,
@@ -124,13 +150,21 @@ class Daemon:
             event_bus=self._bus,
             db=db,
             resume=resume,
+            tokens=tokens,
+            api=api,
             lock=lock,
             started_at=self._now,
+        )
+        _LOG.info(
+            "torqd listening on %s:%d (pid %d)",
+            api.host,
+            api.port,
+            0,  # placeholder; see _pid_log
         )
         return self._context
 
     async def stop(self) -> None:
-        """Flush resume, close the DB, and release the lock."""
+        """Flush resume, stop the API, close the DB, and release the lock."""
         if self._context is None:
             return
         try:
@@ -141,6 +175,10 @@ class Daemon:
                 entries = []
             if entries:
                 self._context.resume.save(entries)
+            # Stop the API server first so in-flight requests drain before
+            # the engine closes underneath them.
+            with contextlib.suppress(Exception):
+                await self._context.api.stop()
             # Close the engine (best-effort).
             close = getattr(self._engine, "close", None)
             if callable(close):

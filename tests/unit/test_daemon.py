@@ -24,6 +24,7 @@ def _paths(tmp_path: Path) -> DaemonPaths:
         db_path=tmp_path / "data" / "torq.db",
         resume_path=tmp_path / "state" / "resume.json",
         lock_path=tmp_path / "state" / "torq.pid",
+        token_path=tmp_path / "state" / "http.token",
     )
 
 
