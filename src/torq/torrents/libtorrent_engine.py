@@ -171,6 +171,13 @@ class LibtorrentEngine:
         self._session: Any = None
         self._handles: dict[str, Any] = {}
 
+    def _get_handle(self, torrent_id: str) -> Any:
+        handle = self._handles.get(torrent_id)
+        if handle is None:
+            msg = f"unknown torrent id: {torrent_id}"
+            raise KeyError(msg)
+        return handle
+
     # -- lifecycle ---------------------------------------------------------
 
     async def start(self) -> None:
@@ -204,6 +211,8 @@ class LibtorrentEngine:
         params = self._lt.add_torrent_params()
         params.save_path = str(options.save_path)
         params.url = magnet
+        if options.start_paused:
+            params.flags = int(getattr(self._lt.torrent_flags, "paused", 0))
         handle = self._session.add_torrent(params)
         primary_id = parsed.info_hash_v1 or parsed.info_hash_v2 or ""
         if primary_id:
@@ -222,46 +231,58 @@ class LibtorrentEngine:
         params = self._lt.add_torrent_params()
         params.ti = ti
         params.save_path = str(options.save_path)
+        if options.start_paused:
+            params.flags = int(getattr(self._lt.torrent_flags, "paused", 0))
         handle = self._session.add_torrent(params)
         info_hash_v1 = str(ti.info_hash()) if ti.info_hash() else ""
         if info_hash_v1:
             self._handles[info_hash_v1] = handle
         return TorrentRef(id=info_hash_v1, info_hash_v1=info_hash_v1, info_hash_v2=None)
 
-    # -- status / list -----------------------------------------------------
+    # -- pause / resume / remove / recheck ---------------------------------
 
-    async def status(self, torrent_id: str) -> TorrentStatus:
+    async def pause(self, torrent_id: str) -> None:
+        self._require_started()
+        self._get_handle(torrent_id).pause()
+
+    async def resume(self, torrent_id: str) -> None:
+        self._require_started()
+        self._get_handle(torrent_id).resume()
+
+    async def remove(self, torrent_id: str, delete_data: bool = False) -> None:
         if self._session is None:
             msg = "engine not started"
             raise RuntimeError(msg)
-        handle = self._handles.get(torrent_id)
+        handle = self._handles.pop(torrent_id, None)
         if handle is None:
             msg = f"unknown torrent id: {torrent_id}"
             raise KeyError(msg)
-        return _build_status(handle, self._lt)
+        options = 0
+        if delete_data:
+            options = int(getattr(getattr(self._lt, "options_t", object()), "delete_files", 1))
+        self._session.remove_torrent(handle, options)
+
+    async def recheck(self, torrent_id: str) -> None:
+        self._require_started()
+        self._get_handle(torrent_id).force_recheck()
+
+    def _require_started(self) -> None:
+        if self._session is None:
+            msg = "engine not started"
+            raise RuntimeError(msg)
+
+    # -- status / list -----------------------------------------------------
+
+    async def status(self, torrent_id: str) -> TorrentStatus:
+        self._require_started()
+        return _build_status(self._get_handle(torrent_id), self._lt)
 
     async def list(self) -> list[TorrentStatus]:
         if self._session is None:
             return []
         return [_build_status(h, self._lt) for h in self._handles.values()]
 
-    # -- slice 0.9+ stubs --------------------------------------------------
-
-    async def pause(self, torrent_id: str) -> None:
-        msg = "LibtorrentEngine.pause lands in slice 0.9"
-        raise NotImplementedError(msg)
-
-    async def resume(self, torrent_id: str) -> None:
-        msg = "LibtorrentEngine.resume lands in slice 0.9"
-        raise NotImplementedError(msg)
-
-    async def remove(self, torrent_id: str, delete_data: bool = False) -> None:
-        msg = "LibtorrentEngine.remove lands in slice 0.9"
-        raise NotImplementedError(msg)
-
-    async def recheck(self, torrent_id: str) -> None:
-        msg = "LibtorrentEngine.recheck lands in slice 0.9"
-        raise NotImplementedError(msg)
+    # -- slice 0.10+ stubs -------------------------------------------------
 
     async def set_file_priority(
         self, torrent_id: str, file_index: int, priority: int

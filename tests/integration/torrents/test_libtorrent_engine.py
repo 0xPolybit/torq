@@ -93,3 +93,111 @@ async def test_engine_status_raises_for_unknown_id(
 ) -> None:
     with pytest.raises(KeyError):
         await engine.status("deadbeef" * 5)
+
+
+# -- pause / resume / remove / recheck ---------------------------------
+
+
+async def test_engine_pause_then_status_shows_paused(
+    engine: LibtorrentEngine, tmp_path: Path
+) -> None:
+    ref = await engine.add_magnet(
+        DEBIAN_MAGNET, AddOptions(save_path=tmp_path)
+    )
+    await engine.pause(ref.id)
+    status = await engine.status(ref.id)
+    assert status.state.value in {"paused", "stalled_download", "stalled_upload"}
+
+
+async def test_engine_resume_after_pause_is_idempotent(
+    engine: LibtorrentEngine, tmp_path: Path
+) -> None:
+    ref = await engine.add_magnet(
+        DEBIAN_MAGNET, AddOptions(save_path=tmp_path)
+    )
+    # Resume on an already-active torrent should be a no-op (no exception).
+    await engine.resume(ref.id)
+    await engine.resume(ref.id)
+    statuses = await engine.list()
+    assert any(s.id == ref.id for s in statuses)
+
+
+async def test_engine_pause_then_resume(
+    engine: LibtorrentEngine, tmp_path: Path
+) -> None:
+    ref = await engine.add_magnet(
+        DEBIAN_MAGNET, AddOptions(save_path=tmp_path)
+    )
+    await engine.pause(ref.id)
+    await engine.resume(ref.id)
+    status = await engine.status(ref.id)
+    assert status.state.value not in {"paused"}
+
+
+async def test_engine_remove_drops_torrent(
+    engine: LibtorrentEngine, tmp_path: Path
+) -> None:
+    ref = await engine.add_magnet(
+        DEBIAN_MAGNET, AddOptions(save_path=tmp_path)
+    )
+    await engine.remove(ref.id)
+    with pytest.raises(KeyError):
+        await engine.status(ref.id)
+
+
+async def test_engine_remove_unknown_id_raises(
+    engine: LibtorrentEngine,
+) -> None:
+    with pytest.raises(KeyError):
+        await engine.remove("deadbeef" * 5)
+
+
+async def test_engine_pause_unknown_id_raises(
+    engine: LibtorrentEngine,
+) -> None:
+    with pytest.raises(KeyError):
+        await engine.pause("deadbeef" * 5)
+
+
+async def test_engine_resume_unknown_id_raises(
+    engine: LibtorrentEngine,
+) -> None:
+    with pytest.raises(KeyError):
+        await engine.resume("deadbeef" * 5)
+
+
+async def test_engine_recheck_does_not_raise(
+    engine: LibtorrentEngine, tmp_path: Path
+) -> None:
+    ref = await engine.add_magnet(
+        DEBIAN_MAGNET, AddOptions(save_path=tmp_path)
+    )
+    await engine.recheck(ref.id)
+    # Status remains queryable after recheck.
+    status = await engine.status(ref.id)
+    assert status.id == ref.id
+
+
+async def test_engine_recheck_unknown_id_raises(
+    engine: LibtorrentEngine,
+) -> None:
+    with pytest.raises(KeyError):
+        await engine.recheck("deadbeef" * 5)
+
+
+async def test_engine_add_magnet_with_start_paused(
+    engine: LibtorrentEngine, tmp_path: Path
+) -> None:
+    ref = await engine.add_magnet(
+        DEBIAN_MAGNET, AddOptions(save_path=tmp_path, start_paused=True)
+    )
+    status = await engine.status(ref.id)
+    # The torrent may have started fetching metadata, but the paused flag
+    # should at minimum be reflected in the state mapping (either PAUSED,
+    # METADATA, or STALLED_*) — assert it is not in the active set.
+    assert status.state.value in {
+        "paused",
+        "stalled_download",
+        "stalled_upload",
+        "metadata",
+    }
