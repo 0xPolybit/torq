@@ -213,10 +213,7 @@ def test_tags_default_is_empty_tuple(tmp_path: Path) -> None:
 
 def test_save_then_load_preserves_order(tmp_path: Path) -> None:
     store = ResumeStore(tmp_path / "resume.json")
-    items = [
-        _entry(id=f"t-{i}", added_at=1_700_000_000 + i)
-        for i in range(10)
-    ]
+    items = [_entry(id=f"t-{i}", added_at=1_700_000_000 + i) for i in range(10)]
     # Sequence is the abstract type; passing a list at runtime is fine.
     store.save(items)
     loaded = store.load()

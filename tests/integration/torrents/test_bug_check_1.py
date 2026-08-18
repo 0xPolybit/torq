@@ -51,13 +51,9 @@ async def test_bug1_id_stable_across_add_remove_add(
     engine: LibtorrentEngine, tmp_path: Path
 ) -> None:
     """Adding the same torrent twice yields the same id."""
-    ref_a = await engine.add_magnet(
-        DEBIAN_MAGNET, AddOptions(save_path=tmp_path)
-    )
+    ref_a = await engine.add_magnet(DEBIAN_MAGNET, AddOptions(save_path=tmp_path))
     await engine.remove(ref_a.id)
-    ref_b = await engine.add_magnet(
-        DEBIAN_MAGNET, AddOptions(save_path=tmp_path)
-    )
+    ref_b = await engine.add_magnet(DEBIAN_MAGNET, AddOptions(save_path=tmp_path))
     assert ref_a.id == ref_b.id
     assert ref_a.info_hash_v1 == ref_b.info_hash_v1
 
@@ -65,12 +61,8 @@ async def test_bug1_id_stable_across_add_remove_add(
 # -- pause / resume idempotency -----------------------------------------
 
 
-async def test_bug1_pause_is_idempotent(
-    engine: LibtorrentEngine, tmp_path: Path
-) -> None:
-    ref = await engine.add_magnet(
-        DEBIAN_MAGNET, AddOptions(save_path=tmp_path)
-    )
+async def test_bug1_pause_is_idempotent(engine: LibtorrentEngine, tmp_path: Path) -> None:
+    ref = await engine.add_magnet(DEBIAN_MAGNET, AddOptions(save_path=tmp_path))
     await engine.pause(ref.id)
     # Second pause should not raise.
     await engine.pause(ref.id)
@@ -84,12 +76,8 @@ async def test_bug1_pause_is_idempotent(
     }
 
 
-async def test_bug1_resume_is_idempotent(
-    engine: LibtorrentEngine, tmp_path: Path
-) -> None:
-    ref = await engine.add_magnet(
-        DEBIAN_MAGNET, AddOptions(save_path=tmp_path)
-    )
+async def test_bug1_resume_is_idempotent(engine: LibtorrentEngine, tmp_path: Path) -> None:
+    ref = await engine.add_magnet(DEBIAN_MAGNET, AddOptions(save_path=tmp_path))
     # Resume on already-active torrent should not raise.
     await engine.resume(ref.id)
     await engine.resume(ref.id)
@@ -118,14 +106,10 @@ async def test_bug1_remove_with_data_deletes_files(
     expected_path.parent.mkdir(parents=True, exist_ok=True)
     expected_path.write_bytes(b"\x00" * meta.total_size)
 
-    ref = await engine.add_torrent_file(
-        TORRENT_PATH, AddOptions(save_path=tmp_path)
-    )
+    ref = await engine.add_torrent_file(TORRENT_PATH, AddOptions(save_path=tmp_path))
     await engine.remove(ref.id, delete_data=True)
 
-    assert not expected_path.exists(), (
-        f"remove(delete_data=True) left {expected_path} behind"
-    )
+    assert not expected_path.exists(), f"remove(delete_data=True) left {expected_path} behind"
 
 
 async def test_bug1_remove_without_data_keeps_files(
@@ -139,11 +123,7 @@ async def test_bug1_remove_without_data_keeps_files(
     expected_path.parent.mkdir(parents=True, exist_ok=True)
     expected_path.write_bytes(b"\x00" * meta.total_size)
 
-    ref = await engine.add_torrent_file(
-        TORRENT_PATH, AddOptions(save_path=tmp_path)
-    )
+    ref = await engine.add_torrent_file(TORRENT_PATH, AddOptions(save_path=tmp_path))
     await engine.remove(ref.id, delete_data=False)
 
-    assert expected_path.exists(), (
-        f"remove(delete_data=False) unexpectedly removed {expected_path}"
-    )
+    assert expected_path.exists(), f"remove(delete_data=False) unexpectedly removed {expected_path}"

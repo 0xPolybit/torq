@@ -1,23 +1,23 @@
 """Parse and validate magnet URIs (BEP-9 / PLAN §23).
 
-    Torq parses magnets itself before handing them to libtorrent so the
-    application can validate input, extract metadata for display, and return
-    clean errors instead of raw engine exceptions.
+Torq parses magnets itself before handing them to libtorrent so the
+application can validate input, extract metadata for display, and return
+clean errors instead of raw engine exceptions.
 
-    Supported parameters
-    --------------------
-    - ``xt`` (exact topic) — single or ``xt.1``, ``xt.2`` indexed form.
-      Recognised URN schemes:
-        * ``urn:btih:<40-hex>`` (BitTorrent v1, SHA-1)
-        * ``urn:btih:<32-base32>`` (BitTorrent v1 base32 form)
-        * ``urn:btmh:<64-hex>`` (BitTorrent v2, SHA-256, multihash prefix 1220)
-    - ``dn`` — display name (URL-decoded).
-    - ``tr`` — tracker URL (repeatable).
-    - ``ws`` — web seed URL (repeatable).
-    - ``xs`` — exact source.
-    - ``as`` — acceptable source.
+Supported parameters
+--------------------
+- ``xt`` (exact topic) — single or ``xt.1``, ``xt.2`` indexed form.
+  Recognised URN schemes:
+    * ``urn:btih:<40-hex>`` (BitTorrent v1, SHA-1)
+    * ``urn:btih:<32-base32>`` (BitTorrent v1 base32 form)
+    * ``urn:btmh:<64-hex>`` (BitTorrent v2, SHA-256, multihash prefix 1220)
+- ``dn`` — display name (URL-decoded).
+- ``tr`` — tracker URL (repeatable).
+- ``ws`` — web seed URL (repeatable).
+- ``xs`` — exact source.
+- ``as`` — acceptable source.
 
-    Unknown parameters are ignored (forward compatibility).
+Unknown parameters are ignored (forward compatibility).
 """
 
 from __future__ import annotations

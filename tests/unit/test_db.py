@@ -45,10 +45,7 @@ def test_init_creates_expected_tables(tmp_path: Path) -> None:
     conn = connect(db_path)
     try:
         names = {
-            row["name"]
-            for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            )
+            row["name"] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
         }
     finally:
         conn.close()
@@ -64,10 +61,7 @@ def test_init_creates_expected_indices(tmp_path: Path) -> None:
     conn = connect(db_path)
     try:
         index_names = {
-            row["name"]
-            for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='index'"
-            )
+            row["name"] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='index'")
         }
     finally:
         conn.close()
@@ -85,9 +79,7 @@ def test_apply_records_timestamp(tmp_path: Path) -> None:
     conn = connect(db_path)
     try:
         apply(conn, now=1_700_000_000)
-        rows = list(
-            conn.execute("SELECT version, applied_at FROM schema_version ORDER BY version")
-        )
+        rows = list(conn.execute("SELECT version, applied_at FROM schema_version ORDER BY version"))
     finally:
         conn.close()
     assert [r["version"] for r in rows] == [v for v, _ in MIGRATIONS]
@@ -100,17 +92,11 @@ def test_apply_is_idempotent(tmp_path: Path) -> None:
     try:
         apply(conn, now=1)
         first_tables = {
-            row["name"]
-            for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            )
+            row["name"] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
         }
         apply(conn, now=2)
         second_tables = {
-            row["name"]
-            for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            )
+            row["name"] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
         }
     finally:
         conn.close()
@@ -122,14 +108,10 @@ def test_apply_only_runs_pending_migrations(tmp_path: Path) -> None:
     conn = connect(db_path)
     try:
         apply(conn, now=1)  # Apply everything.
-        before = conn.execute(
-            "SELECT COUNT(*) AS n FROM schema_version"
-        ).fetchone()["n"]
+        before = conn.execute("SELECT COUNT(*) AS n FROM schema_version").fetchone()["n"]
         # Re-apply: no new migrations should run.
         apply(conn, now=2)
-        after = conn.execute(
-            "SELECT COUNT(*) AS n FROM schema_version"
-        ).fetchone()["n"]
+        after = conn.execute("SELECT COUNT(*) AS n FROM schema_version").fetchone()["n"]
     finally:
         conn.close()
     assert before == after == len(MIGRATIONS)
@@ -187,9 +169,7 @@ def test_events_table_round_trip(tmp_path: Path) -> None:
             "INSERT INTO events (torrent_id, kind, timestamp, payload) VALUES (?, ?, ?, ?)",
             ("abc", "TorrentAdded", 1, '{"foo": 1}'),
         )
-        row = conn.execute(
-            "SELECT * FROM events WHERE torrent_id = ?", ("abc",)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM events WHERE torrent_id = ?", ("abc",)).fetchone()
     finally:
         conn.close()
     assert row is not None
@@ -206,9 +186,7 @@ def test_settings_table_round_trip(tmp_path: Path) -> None:
             "INSERT INTO settings (key, value) VALUES (?, ?)",
             ("ui.theme", "dark"),
         )
-        row = conn.execute(
-            "SELECT * FROM settings WHERE key = ?", ("ui.theme",)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM settings WHERE key = ?", ("ui.theme",)).fetchone()
     finally:
         conn.close()
     assert row is not None
@@ -290,10 +268,7 @@ def test_newly_added_migration_runs_after_partial_state(tmp_path: Path) -> None:
     conn = connect(db_path)
     try:
         names = {
-            row["name"]
-            for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            )
+            row["name"] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
         }
     finally:
         conn.close()

@@ -103,9 +103,7 @@ class APIServer:
 
     async def start(self) -> None:
         host = validate_loopback(self._config.host)
-        self._server = await asyncio.start_server(
-            self._handle_connection, host, self._config.port
-        )
+        self._server = await asyncio.start_server(self._handle_connection, host, self._config.port)
         socks = self._server.sockets or ()
         if not socks:
             msg = "API server bound no sockets"
@@ -161,9 +159,7 @@ class APIServer:
                 writer.close()
                 await writer.wait_closed()
 
-    async def _dispatch(
-        self, request: HTTPRequest, *, require_auth: bool
-    ) -> Response:
+    async def _dispatch(self, request: HTTPRequest, *, require_auth: bool) -> Response:
         # Split path from the query string before matching.
         path = request.target.split("?", 1)[0]
         resolved = self._router.resolve(request.method, path)
@@ -191,9 +187,7 @@ class APIServer:
         # handler, which logs and returns a generic 500.
 
 
-async def _write_response(
-    writer: asyncio.StreamWriter, response: Response
-) -> None:
+async def _write_response(writer: asyncio.StreamWriter, response: Response) -> None:
     body = response.body
     if isinstance(body, AsyncIterator):
         await _stream_response(writer, response, body)

@@ -67,9 +67,7 @@ def test_torrent_error_alert_extracts_message() -> None:
             return "boom"
 
     handle = _fake_handle()
-    alert = _make_alert(
-        "torrent_error_alert", handle=handle, error=_Err(), timestamp=None
-    )
+    alert = _make_alert("torrent_error_alert", handle=handle, error=_Err(), timestamp=None)
     events = alerts.translate(alert, {"abc": handle})
     assert len(events) == 1
     assert isinstance(events[0], TorrentError)
@@ -118,9 +116,7 @@ def test_file_error_alert_includes_message() -> None:
             return "read failed"
 
     handle = _fake_handle()
-    alert = _make_alert(
-        "file_error_alert", handle=handle, index=2, error=_Err(), timestamp=None
-    )
+    alert = _make_alert("file_error_alert", handle=handle, index=2, error=_Err(), timestamp=None)
     events = alerts.translate(alert, {"abc": handle})
     assert len(events) == 1
     assert isinstance(events[0], FileError)

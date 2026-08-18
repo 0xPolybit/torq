@@ -1,14 +1,14 @@
 """Parse and validate ``.torrent`` metadata files (BEP-3, PLAN §25).
 
-    Path safety and full v2 file-tree parsing are addressed in later slices.
-    This module covers:
+Path safety and full v2 file-tree parsing are addressed in later slices.
+This module covers:
 
-    - file existence + size cap;
-    - bencode validity;
-    - v1 / v2 / hybrid info-hash computation;
-    - single-file and multi-file (v1) torrent file enumeration;
-    - announce / announce-list extraction;
-    - piece-count consistency with total size.
+- file existence + size cap;
+- bencode validity;
+- v1 / v2 / hybrid info-hash computation;
+- single-file and multi-file (v1) torrent file enumeration;
+- announce / announce-list extraction;
+- piece-count consistency with total size.
 """
 
 from __future__ import annotations
@@ -179,13 +179,9 @@ def _extract_files(
             parts: list[str] = []
             for part in path_list:
                 if not isinstance(part, bytes):
-                    raise InvalidTorrentFileError(
-                        f"info.files[{idx}].path contains non-bytes"
-                    )
+                    raise InvalidTorrentFileError(f"info.files[{idx}].path contains non-bytes")
                 parts.append(part.decode("utf-8", errors="replace"))
-            entries.append(
-                TorrentFileEntry(index=idx, path="/".join(parts), size_bytes=length)
-            )
+            entries.append(TorrentFileEntry(index=idx, path="/".join(parts), size_bytes=length))
             total += length
         return entries, total
 

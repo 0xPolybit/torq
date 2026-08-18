@@ -177,12 +177,9 @@ async def test_crash_during_api_request_returns_500(tmp_path: Path) -> None:
         assert _status(raw) == 500
 
         # Server must still be healthy for subsequent requests.
-        ok_req = (
-            "GET /health HTTP/1.1\r\n"
-            "Host: 127.0.0.1\r\n"
-            "Connection: close\r\n"
-            "\r\n"
-        ).encode("ascii")
+        ok_req = ("GET /health HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n").encode(
+            "ascii"
+        )
         raw = await _request(server, ok_req)
         assert _status(raw) == 200
     finally:
@@ -208,11 +205,7 @@ async def test_token_not_leaked_in_responses(tmp_path: Path) -> None:
     try:
         # Hit every endpoint we have. None should include the token.
         for path in ("/health", "/torrents", "/nope"):
-            auth_header = (
-                f"Authorization: Bearer {auth.token}\r\n"
-                if path != "/health"
-                else ""
-            )
+            auth_header = f"Authorization: Bearer {auth.token}\r\n" if path != "/health" else ""
             raw = await _request(
                 server,
                 (
@@ -338,9 +331,7 @@ async def test_stop_releases_lock_for_new_daemon(tmp_path: Path) -> None:
     await d1.start()
     await d1.stop()
     # The lock file must be gone or stale.
-    assert not paths.lock_path.exists() or not _pid_alive(
-        int(paths.lock_path.read_text().strip())
-    )
+    assert not paths.lock_path.exists() or not _pid_alive(int(paths.lock_path.read_text().strip()))
     d2 = _make_daemon(tmp_path)
     await d2.start()
     try:
@@ -430,6 +421,7 @@ async def test_concurrent_requests_are_serialised(tmp_path: Path) -> None:
     )
     await server.start()
     try:
+
         async def one() -> bytes:
             return await _request(
                 server,

@@ -38,20 +38,20 @@ def test_load_missing_file_returns_defaults(tmp_path: Path) -> None:
 def test_load_full_config(tmp_path: Path) -> None:
     config_path = tmp_path / "torq.toml"
     config_path.write_text(
-        '[daemon]\n'
+        "[daemon]\n"
         'host = "127.0.0.1"\n'
-        'port = 9090\n'
-        'token_length = 64\n'
-        '\n'
-        '[downloads]\n'
+        "port = 9090\n"
+        "token_length = 64\n"
+        "\n"
+        "[downloads]\n"
         'default_save_path = "~/Downloads/torq"\n'
-        'start_paused = true\n'
-        '\n'
-        '[network]\n'
-        'listen_ports = [7000, 7099]\n'
-        'download_limit = 1024\n'
-        '\n'
-        '[logging]\n'
+        "start_paused = true\n"
+        "\n"
+        "[network]\n"
+        "listen_ports = [7000, 7099]\n"
+        "download_limit = 1024\n"
+        "\n"
+        "[logging]\n"
         'level = "DEBUG"\n',
         encoding="utf-8",
     )
@@ -68,7 +68,7 @@ def test_load_full_config(tmp_path: Path) -> None:
 
 def test_load_partial_config_falls_back_to_defaults(tmp_path: Path) -> None:
     config_path = tmp_path / "torq.toml"
-    config_path.write_text('[daemon]\nport = 9999\n', encoding="utf-8")
+    config_path.write_text("[daemon]\nport = 9999\n", encoding="utf-8")
     config = load_config(config_path)
     assert config.daemon.port == 9999
     assert config.daemon.host == "127.0.0.1"  # default
@@ -85,7 +85,7 @@ def test_load_rejects_unknown_key_in_section(tmp_path: Path) -> None:
 def test_load_rejects_unknown_section(tmp_path: Path) -> None:
     """Unknown sections are silently ignored (forward-compat)."""
     config_path = tmp_path / "torq.toml"
-    config_path.write_text('[daemon]\nport = 8080\n\n[unknown_section]\n', encoding="utf-8")
+    config_path.write_text("[daemon]\nport = 8080\n\n[unknown_section]\n", encoding="utf-8")
     config = load_config(config_path)
     assert config.daemon.port == 8080
 
@@ -138,7 +138,7 @@ def test_load_empty_file_returns_defaults(tmp_path: Path) -> None:
 def test_each_section_field_is_independent(tmp_path: Path) -> None:
     """Touching one section's fields leaves the others alone."""
     config_path = tmp_path / "torq.toml"
-    config_path.write_text('[network]\ndownload_limit = 555\n', encoding="utf-8")
+    config_path.write_text("[network]\ndownload_limit = 555\n", encoding="utf-8")
     config = load_config(config_path)
     assert config.network.download_limit == 555
     assert config.network.upload_limit == 0
@@ -155,6 +155,6 @@ def test_downloads_default_save_path_is_empty() -> None:
 
 def test_network_section_accepts_upload_limit(tmp_path: Path) -> None:
     config_path = tmp_path / "torq.toml"
-    config_path.write_text('[network]\nupload_limit = 12345\n', encoding="utf-8")
+    config_path.write_text("[network]\nupload_limit = 12345\n", encoding="utf-8")
     config = load_config(config_path)
     assert config.network.upload_limit == 12345

@@ -92,9 +92,7 @@ def bdecode(data: bytes) -> Any:
                 raise BencodeDecodeError("String runs past end of data")
             cursor[0] = start + length
             return data[start : start + length]
-        raise BencodeDecodeError(
-            f"Unexpected byte 0x{c:02x} at position {cursor[0] - 1}"
-        )
+        raise BencodeDecodeError(f"Unexpected byte 0x{c:02x} at position {cursor[0] - 1}")
 
     result = read()
     if cursor[0] != len(data):

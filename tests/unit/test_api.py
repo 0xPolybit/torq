@@ -32,9 +32,7 @@ from torq.torrents.fake import FakeEngine
 # --------------------------------------------------------------------- utils
 
 
-async def _request(
-    server: APIServer, raw: bytes
-) -> bytes:
+async def _request(server: APIServer, raw: bytes) -> bytes:
     reader, writer = await asyncio.open_connection(server.host, server.port)
     writer.write(raw)
     await writer.drain()
@@ -51,11 +49,7 @@ async def _request(
 
 def _build_get(path: str = "/health") -> bytes:
     return (
-        f"GET {path} HTTP/1.1\r\n"
-        "Host: 127.0.0.1\r\n"
-        "Accept: */*\r\n"
-        "Connection: close\r\n"
-        "\r\n"
+        f"GET {path} HTTP/1.1\r\nHost: 127.0.0.1\r\nAccept: */*\r\nConnection: close\r\n\r\n"
     ).encode("ascii")
 
 
@@ -152,7 +146,8 @@ async def test_list_torrents_returns_engine_results(tmp_path: Path) -> None:
     engine = FakeEngine()
     await engine.start()
     ref = await engine.add_magnet(
-        "magnet:?xt=urn:btih:abc&dn=demo", None  # type: ignore[arg-type]
+        "magnet:?xt=urn:btih:abc&dn=demo",
+        None,  # type: ignore[arg-type]
     )
     bus = EventBus()
     tokens = TokenStore(tmp_path / "tok")
@@ -165,7 +160,12 @@ async def test_list_torrents_returns_engine_results(tmp_path: Path) -> None:
     )
     await server.start()
     try:
-        raw = await _request(server, _build_get("/torrents", ))  # type: ignore[arg-type]
+        raw = await _request(
+            server,
+            _build_get(
+                "/torrents",
+            ),
+        )  # type: ignore[arg-type]
         request = _build_get("/torrents")
         del raw, request  # silence unused
         raw = await _request(server, _build_get("/torrents"))
@@ -274,10 +274,7 @@ async def test_non_loopback_host_header_rejected(tmp_path: Path) -> None:
     await server.start()
     try:
         bad = (
-            "GET /health HTTP/1.1\r\n"
-            "Host: evil.example.com\r\n"
-            "Connection: close\r\n"
-            "\r\n"
+            "GET /health HTTP/1.1\r\nHost: evil.example.com\r\nConnection: close\r\n\r\n"
         ).encode("ascii")
         raw = await _request(server, bad)
         assert _status_from_response(raw) == 400
@@ -344,7 +341,8 @@ async def test_pause_resume_remove_round_trip(tmp_path: Path) -> None:
     engine = FakeEngine()
     await engine.start()
     ref = await engine.add_magnet(
-        "magnet:?xt=urn:btih:abc&dn=demo", None  # type: ignore[arg-type]
+        "magnet:?xt=urn:btih:abc&dn=demo",
+        None,  # type: ignore[arg-type]
     )
     bus = EventBus()
     tokens = TokenStore(tmp_path / "tok")
@@ -453,12 +451,9 @@ async def test_events_endpoint_rejects_unauthorized(tmp_path: Path) -> None:
     try:
         raw = await _request(
             server,
-            (
-                "GET /events HTTP/1.1\r\n"
-                "Host: 127.0.0.1\r\n"
-                "Connection: close\r\n"
-                "\r\n"
-            ).encode("ascii"),
+            ("GET /events HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n").encode(
+                "ascii"
+            ),
         )
         assert _status_from_response(raw) == 401
     finally:
@@ -566,10 +561,9 @@ async def test_read_request_parses_simple_get() -> None:
 @pytest.mark.asyncio
 async def test_read_request_parses_post_body() -> None:
     reader = asyncio.StreamReader()
-    body = b"{\"a\": 1}"
+    body = b'{"a": 1}'
     reader.feed_data(
-        f"POST /x HTTP/1.1\r\nHost: y\r\nContent-Length: {len(body)}\r\n\r\n".encode("ascii")
-        + body
+        f"POST /x HTTP/1.1\r\nHost: y\r\nContent-Length: {len(body)}\r\n\r\n".encode("ascii") + body
     )
     reader.feed_eof()
     request = await read_request(reader)
@@ -589,9 +583,7 @@ async def test_read_request_rejects_negative_content_length() -> None:
 @pytest.mark.asyncio
 async def test_read_request_rejects_chunked_encoding() -> None:
     reader = asyncio.StreamReader()
-    reader.feed_data(
-        b"POST /x HTTP/1.1\r\nHost: y\r\nTransfer-Encoding: chunked\r\n\r\n"
-    )
+    reader.feed_data(b"POST /x HTTP/1.1\r\nHost: y\r\nTransfer-Encoding: chunked\r\n\r\n")
     reader.feed_eof()
     with pytest.raises(HTTPParseError):
         await read_request(reader)

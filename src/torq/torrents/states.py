@@ -1,7 +1,7 @@
 """Re-export of the torrent state enum for backwards-compatible imports.
 
-    The authoritative definition lives in :mod:`torq.torrents.models`.
-    """
+The authoritative definition lives in :mod:`torq.torrents.models`.
+"""
 
 from __future__ import annotations
 

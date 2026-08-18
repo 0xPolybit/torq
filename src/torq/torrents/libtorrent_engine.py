@@ -30,6 +30,7 @@ from torq.util.magnet import parse_magnet
 
 try:
     import libtorrent as _lt  # type: ignore[import-not-found]
+
     _LIBTORRENT_AVAILABLE = True
 except ImportError:
     _lt = None
@@ -71,9 +72,7 @@ def map_state(status: Any, lt: Any) -> TorrentState:
         return TorrentState.ERROR
     if _has_flag(status, "paused", lt) or _has_flag(status, "paused_auto", lt):
         return TorrentState.PAUSED
-    if _has_flag(status, "checking_files", lt) or _has_flag(
-        status, "checking_resume_data", lt
-    ):
+    if _has_flag(status, "checking_files", lt) or _has_flag(status, "checking_resume_data", lt):
         return TorrentState.CHECKING
     if _has_flag(status, "downloading_metadata", lt):
         return TorrentState.METADATA
@@ -338,9 +337,7 @@ class LibtorrentEngine:
 
     # -- file priorities + transfer limits --------------------------------
 
-    async def set_file_priority(
-        self, torrent_id: str, file_index: int, priority: int
-    ) -> None:
+    async def set_file_priority(self, torrent_id: str, file_index: int, priority: int) -> None:
         if not 0 <= priority <= 7:
             msg = f"file priority must be in 0..7, got {priority}"
             raise ValueError(msg)

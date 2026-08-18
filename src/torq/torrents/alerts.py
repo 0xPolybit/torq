@@ -83,11 +83,7 @@ def translate(alert: Any, handles: dict[str, Any]) -> Result:
         ]
 
     if name == "torrent_finished_alert" and handle is not None:
-        return [
-            TorrentFinished(
-                torrent_id=_handle_id(handle, handles), timestamp=timestamp
-            )
-        ]
+        return [TorrentFinished(torrent_id=_handle_id(handle, handles), timestamp=timestamp)]
 
     if name == "torrent_error_alert" and handle is not None:
         msg = ""
@@ -106,25 +102,13 @@ def translate(alert: Any, handles: dict[str, Any]) -> Result:
         ]
 
     if name == "torrent_paused_alert" and handle is not None:
-        return [
-            TorrentPaused(
-                torrent_id=_handle_id(handle, handles), timestamp=timestamp
-            )
-        ]
+        return [TorrentPaused(torrent_id=_handle_id(handle, handles), timestamp=timestamp)]
 
     if name == "torrent_resumed_alert" and handle is not None:
-        return [
-            TorrentResumed(
-                torrent_id=_handle_id(handle, handles), timestamp=timestamp
-            )
-        ]
+        return [TorrentResumed(torrent_id=_handle_id(handle, handles), timestamp=timestamp)]
 
     if name == "torrent_removed_alert" and handle is not None:
-        return [
-            TorrentRemoved(
-                torrent_id=_handle_id(handle, handles), timestamp=timestamp
-            )
-        ]
+        return [TorrentRemoved(torrent_id=_handle_id(handle, handles), timestamp=timestamp)]
 
     if name == "file_completed_alert" and handle is not None:
         return [

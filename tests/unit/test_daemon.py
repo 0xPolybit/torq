@@ -55,9 +55,7 @@ async def test_start_initialises_schema(tmp_path: Path) -> None:
     try:
         names = {
             row["name"]
-            for row in ctx.db.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            )
+            for row in ctx.db.execute("SELECT name FROM sqlite_master WHERE type='table'")
         }
         assert "torrents" in names
         assert "events" in names

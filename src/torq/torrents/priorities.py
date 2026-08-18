@@ -1,8 +1,8 @@
 """File priority constants (PLAN §24).
 
-    The numerical values match libtorrent's ``file_priority_t`` so the
-    adapter can pass them straight through. Users should normally interact
-    with the named enum members, not raw ints.
+The numerical values match libtorrent's ``file_priority_t`` so the
+adapter can pass them straight through. Users should normally interact
+with the named enum members, not raw ints.
 """
 
 from __future__ import annotations

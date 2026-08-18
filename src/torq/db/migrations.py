@@ -88,9 +88,7 @@ def apply(conn: sqlite3.Connection, now: int) -> int:
         "CREATE TABLE IF NOT EXISTS schema_version ("
         "version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)"
     )
-    current_raw = conn.execute(
-        "SELECT COALESCE(MAX(version), 0) FROM schema_version"
-    ).fetchone()[0]
+    current_raw = conn.execute("SELECT COALESCE(MAX(version), 0) FROM schema_version").fetchone()[0]
     current = int(current_raw)
     for version, sql in MIGRATIONS:
         if version > current:
@@ -110,7 +108,5 @@ def current_version(conn: sqlite3.Connection) -> int:
     ).fetchone()
     if row is None:
         return 0
-    version_raw = conn.execute(
-        "SELECT COALESCE(MAX(version), 0) FROM schema_version"
-    ).fetchone()[0]
+    version_raw = conn.execute("SELECT COALESCE(MAX(version), 0) FROM schema_version").fetchone()[0]
     return int(version_raw)

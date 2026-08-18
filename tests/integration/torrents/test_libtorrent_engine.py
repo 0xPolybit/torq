@@ -58,20 +58,14 @@ async def test_engine_stop_clears_session() -> None:
 async def test_engine_add_magnet_yields_ref_with_v1_hash(
     engine: LibtorrentEngine, tmp_path: Path
 ) -> None:
-    ref = await engine.add_magnet(
-        DEBIAN_MAGNET, AddOptions(save_path=tmp_path)
-    )
+    ref = await engine.add_magnet(DEBIAN_MAGNET, AddOptions(save_path=tmp_path))
     assert ref.info_hash_v1 is not None
     assert len(ref.info_hash_v1) == 40
     assert ref.id == ref.info_hash_v1
 
 
-async def test_engine_list_contains_added_torrent(
-    engine: LibtorrentEngine, tmp_path: Path
-) -> None:
-    ref = await engine.add_magnet(
-        DEBIAN_MAGNET, AddOptions(save_path=tmp_path)
-    )
+async def test_engine_list_contains_added_torrent(engine: LibtorrentEngine, tmp_path: Path) -> None:
+    ref = await engine.add_magnet(DEBIAN_MAGNET, AddOptions(save_path=tmp_path))
     statuses = await engine.list()
     ids = {s.id for s in statuses}
     assert ref.id in ids
@@ -80,9 +74,7 @@ async def test_engine_list_contains_added_torrent(
 async def test_engine_status_lookup_returns_torrent_status(
     engine: LibtorrentEngine, tmp_path: Path
 ) -> None:
-    ref = await engine.add_magnet(
-        DEBIAN_MAGNET, AddOptions(save_path=tmp_path)
-    )
+    ref = await engine.add_magnet(DEBIAN_MAGNET, AddOptions(save_path=tmp_path))
     status = await engine.status(ref.id)
     assert status.id == ref.id
     assert status.total_size is not None
@@ -102,9 +94,7 @@ async def test_engine_status_raises_for_unknown_id(
 async def test_engine_pause_then_status_shows_paused(
     engine: LibtorrentEngine, tmp_path: Path
 ) -> None:
-    ref = await engine.add_magnet(
-        DEBIAN_MAGNET, AddOptions(save_path=tmp_path)
-    )
+    ref = await engine.add_magnet(DEBIAN_MAGNET, AddOptions(save_path=tmp_path))
     await engine.pause(ref.id)
     status = await engine.status(ref.id)
     assert status.state.value in {"paused", "stalled_download", "stalled_upload"}
@@ -113,9 +103,7 @@ async def test_engine_pause_then_status_shows_paused(
 async def test_engine_resume_after_pause_is_idempotent(
     engine: LibtorrentEngine, tmp_path: Path
 ) -> None:
-    ref = await engine.add_magnet(
-        DEBIAN_MAGNET, AddOptions(save_path=tmp_path)
-    )
+    ref = await engine.add_magnet(DEBIAN_MAGNET, AddOptions(save_path=tmp_path))
     # Resume on an already-active torrent should be a no-op (no exception).
     await engine.resume(ref.id)
     await engine.resume(ref.id)
@@ -123,24 +111,16 @@ async def test_engine_resume_after_pause_is_idempotent(
     assert any(s.id == ref.id for s in statuses)
 
 
-async def test_engine_pause_then_resume(
-    engine: LibtorrentEngine, tmp_path: Path
-) -> None:
-    ref = await engine.add_magnet(
-        DEBIAN_MAGNET, AddOptions(save_path=tmp_path)
-    )
+async def test_engine_pause_then_resume(engine: LibtorrentEngine, tmp_path: Path) -> None:
+    ref = await engine.add_magnet(DEBIAN_MAGNET, AddOptions(save_path=tmp_path))
     await engine.pause(ref.id)
     await engine.resume(ref.id)
     status = await engine.status(ref.id)
     assert status.state.value not in {"paused"}
 
 
-async def test_engine_remove_drops_torrent(
-    engine: LibtorrentEngine, tmp_path: Path
-) -> None:
-    ref = await engine.add_magnet(
-        DEBIAN_MAGNET, AddOptions(save_path=tmp_path)
-    )
+async def test_engine_remove_drops_torrent(engine: LibtorrentEngine, tmp_path: Path) -> None:
+    ref = await engine.add_magnet(DEBIAN_MAGNET, AddOptions(save_path=tmp_path))
     await engine.remove(ref.id)
     with pytest.raises(KeyError):
         await engine.status(ref.id)
@@ -167,12 +147,8 @@ async def test_engine_resume_unknown_id_raises(
         await engine.resume("deadbeef" * 5)
 
 
-async def test_engine_recheck_does_not_raise(
-    engine: LibtorrentEngine, tmp_path: Path
-) -> None:
-    ref = await engine.add_magnet(
-        DEBIAN_MAGNET, AddOptions(save_path=tmp_path)
-    )
+async def test_engine_recheck_does_not_raise(engine: LibtorrentEngine, tmp_path: Path) -> None:
+    ref = await engine.add_magnet(DEBIAN_MAGNET, AddOptions(save_path=tmp_path))
     await engine.recheck(ref.id)
     # Status remains queryable after recheck.
     status = await engine.status(ref.id)
@@ -189,9 +165,7 @@ async def test_engine_recheck_unknown_id_raises(
 async def test_engine_add_magnet_with_start_paused(
     engine: LibtorrentEngine, tmp_path: Path
 ) -> None:
-    ref = await engine.add_magnet(
-        DEBIAN_MAGNET, AddOptions(save_path=tmp_path, start_paused=True)
-    )
+    ref = await engine.add_magnet(DEBIAN_MAGNET, AddOptions(save_path=tmp_path, start_paused=True))
     status = await engine.status(ref.id)
     # The torrent may have started fetching metadata, but the paused flag
     # should at minimum be reflected in the state mapping (either PAUSED,
@@ -215,9 +189,7 @@ async def test_engine_set_file_priority_accepts_known_value(
     # so the metadata is available immediately.
     from tests.integration.torrents.test_bug_check_1 import TORRENT_PATH
 
-    ref = await engine.add_torrent_file(
-        TORRENT_PATH, AddOptions(save_path=tmp_path)
-    )
+    ref = await engine.add_torrent_file(TORRENT_PATH, AddOptions(save_path=tmp_path))
     await engine.set_file_priority(ref.id, 0, int(FilePriority.HIGH))
     # No assertion on internals — the call must simply not raise.
 
@@ -228,9 +200,7 @@ async def test_engine_set_file_priority_rejects_out_of_range(
     """set_file_priority validates the priority range."""
     from tests.integration.torrents.test_bug_check_1 import TORRENT_PATH
 
-    ref = await engine.add_torrent_file(
-        TORRENT_PATH, AddOptions(save_path=tmp_path)
-    )
+    ref = await engine.add_torrent_file(TORRENT_PATH, AddOptions(save_path=tmp_path))
     with pytest.raises(ValueError):
         await engine.set_file_priority(ref.id, 0, 8)
     with pytest.raises(ValueError):
@@ -244,14 +214,10 @@ async def test_engine_set_file_priority_unknown_id_raises(
         await engine.set_file_priority("deadbeef" * 5, 0, 4)
 
 
-async def test_engine_set_limits_per_torrent(
-    engine: LibtorrentEngine, tmp_path: Path
-) -> None:
+async def test_engine_set_limits_per_torrent(engine: LibtorrentEngine, tmp_path: Path) -> None:
     from tests.integration.torrents.test_bug_check_1 import TORRENT_PATH
 
-    ref = await engine.add_torrent_file(
-        TORRENT_PATH, AddOptions(save_path=tmp_path)
-    )
+    ref = await engine.add_torrent_file(TORRENT_PATH, AddOptions(save_path=tmp_path))
     await engine.set_limits(
         ref.id,
         TransferLimits(download_bytes_per_second=200_000, upload_bytes_per_second=100_000),
@@ -261,14 +227,10 @@ async def test_engine_set_limits_per_torrent(
     assert any(s.id == ref.id for s in statuses)
 
 
-async def test_engine_set_limits_rejects_negative(
-    engine: LibtorrentEngine, tmp_path: Path
-) -> None:
+async def test_engine_set_limits_rejects_negative(engine: LibtorrentEngine, tmp_path: Path) -> None:
     from tests.integration.torrents.test_bug_check_1 import TORRENT_PATH
 
-    ref = await engine.add_torrent_file(
-        TORRENT_PATH, AddOptions(save_path=tmp_path)
-    )
+    ref = await engine.add_torrent_file(TORRENT_PATH, AddOptions(save_path=tmp_path))
     with pytest.raises(ValueError):
         await engine.set_limits(
             ref.id,

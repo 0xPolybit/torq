@@ -65,9 +65,7 @@ class Router:
             )
         )
 
-    def resolve(
-        self, method: str, path: str
-    ) -> tuple[RouteHandler, Mapping[str, str]] | None:
+    def resolve(self, method: str, path: str) -> tuple[RouteHandler, Mapping[str, str]] | None:
         for route in self._routes:
             if route.method != method.upper():
                 continue
@@ -203,9 +201,7 @@ def _add_torrent(
             else:
                 ref = await engine.add_torrent_file(Path(source), options)
         except (RuntimeError, ValueError, OSError) as exc:
-            return json_response(
-                {"error": "add failed", "detail": str(exc)}, status=400
-            )
+            return json_response({"error": "add failed", "detail": str(exc)}, status=400)
         return json_response(
             {
                 "id": ref.id,

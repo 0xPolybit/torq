@@ -53,9 +53,7 @@ def _parse(data: dict[str, Any]) -> Config:
     )
 
 
-def _section(
-    cls: type[Any], raw: dict[str, Any], section_name: str
-) -> Any:
+def _section(cls: type[Any], raw: dict[str, Any], section_name: str) -> Any:
     """Build a section dataclass, rejecting unknown keys."""
     if not isinstance(raw, dict):
         msg = f"config section [{section_name}] must be a table, got {type(raw).__name__}"
