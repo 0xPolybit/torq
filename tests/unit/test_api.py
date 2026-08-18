@@ -82,6 +82,21 @@ def _build_delete(path: str, token: str | None = None) -> bytes:
     return "\r\n".join(headers).encode("utf-8")
 
 
+def _build_patch_json(path: str, body: dict[str, object], token: str) -> bytes:
+    encoded = json.dumps(body).encode("utf-8")
+    headers = [
+        f"PATCH {path} HTTP/1.1",
+        "Host: 127.0.0.1",
+        f"Content-Length: {len(encoded)}",
+        "Content-Type: application/json",
+        f"Authorization: Bearer {token}",
+        "Connection: close",
+    ]
+    headers.append("")
+    headers.append("")
+    return ("\r\n".join(headers) + encoded.decode("utf-8")).encode("utf-8")
+
+
 def _status_from_response(raw: bytes) -> int:
     line = raw.split(b"\r\n", 1)[0].decode("ascii")
     return int(line.split(" ")[1])
@@ -386,6 +401,232 @@ async def test_pause_resume_remove_round_trip(tmp_path: Path) -> None:
         )
         body = json.loads(_body_from_response(raw))
         assert body == []
+    finally:
+        await server.stop()
+
+
+async def _seed_engine(tmp_path: Path) -> tuple[FakeEngine, APIServer, str, str]:
+    """Start a server with one torrent seeded and return useful handles."""
+    engine = FakeEngine()
+    await engine.start()
+    ref = await engine.add_magnet(
+        "magnet:?xt=urn:btih:abc&dn=demo",
+        None,  # type: ignore[arg-type]
+    )
+    bus = EventBus()
+    tokens = TokenStore(tmp_path / "tok")
+    auth = tokens.provision()
+    server = APIServer(
+        config=ServerConfig(host="127.0.0.1", port=0),
+        engine=engine,
+        event_bus=bus,
+        tokens=tokens,
+    )
+    await server.start()
+    return engine, server, ref.id, auth.token
+
+
+@pytest.mark.asyncio
+async def test_get_torrent_returns_status(tmp_path: Path) -> None:
+    _engine, server, torrent_id, token = await _seed_engine(tmp_path)
+    try:
+        request = (
+            f"GET /torrents/{torrent_id} HTTP/1.1\r\n"
+            "Host: 127.0.0.1\r\n"
+            f"Authorization: Bearer {token}\r\n"
+            "Connection: close\r\n\r\n"
+        ).encode("ascii")
+        raw = await _request(server, request)
+        assert _status_from_response(raw) == 200
+        body = json.loads(_body_from_response(raw))
+        assert body["id"] == torrent_id
+    finally:
+        await server.stop()
+
+
+@pytest.mark.asyncio
+async def test_get_torrent_unknown_returns_404(tmp_path: Path) -> None:
+    _engine, server, _torrent_id, token = await _seed_engine(tmp_path)
+    try:
+        request = (
+            "GET /torrents/nonexistent HTTP/1.1\r\n"
+            "Host: 127.0.0.1\r\n"
+            f"Authorization: Bearer {token}\r\n"
+            "Connection: close\r\n\r\n"
+        ).encode("ascii")
+        raw = await _request(server, request)
+        assert _status_from_response(raw) == 404
+    finally:
+        await server.stop()
+
+
+@pytest.mark.asyncio
+async def test_recheck_returns_204(tmp_path: Path) -> None:
+    _engine, server, torrent_id, token = await _seed_engine(tmp_path)
+    try:
+        raw = await _request(
+            server, _build_post_json(f"/torrents/{torrent_id}/recheck", {}, token=token)
+        )
+        assert _status_from_response(raw) == 204
+    finally:
+        await server.stop()
+
+
+@pytest.mark.asyncio
+async def test_recheck_unknown_returns_404(tmp_path: Path) -> None:
+    _engine, server, _torrent_id, token = await _seed_engine(tmp_path)
+    try:
+        raw = await _request(
+            server,
+            _build_post_json("/torrents/nonexistent/recheck", {}, token=token),
+        )
+        assert _status_from_response(raw) == 404
+    finally:
+        await server.stop()
+
+
+@pytest.mark.asyncio
+async def test_pause_unknown_returns_404(tmp_path: Path) -> None:
+    _engine, server, _torrent_id, token = await _seed_engine(tmp_path)
+    try:
+        raw = await _request(server, _build_post_json("/torrents/nope/pause", {}, token=token))
+        assert _status_from_response(raw) == 404
+    finally:
+        await server.stop()
+
+
+@pytest.mark.asyncio
+async def test_patch_file_priority_accepts_valid_value(tmp_path: Path) -> None:
+    _engine, server, torrent_id, token = await _seed_engine(tmp_path)
+    try:
+        raw = await _request(
+            server,
+            _build_patch_json(
+                f"/torrents/{torrent_id}/files/0",
+                {"priority": 5},
+                token=token,
+            ),
+        )
+        assert _status_from_response(raw) == 204
+    finally:
+        await server.stop()
+
+
+@pytest.mark.asyncio
+async def test_patch_file_priority_rejects_out_of_range(tmp_path: Path) -> None:
+    _engine, server, torrent_id, token = await _seed_engine(tmp_path)
+    try:
+        raw = await _request(
+            server,
+            _build_patch_json(
+                f"/torrents/{torrent_id}/files/0",
+                {"priority": 99},
+                token=token,
+            ),
+        )
+        assert _status_from_response(raw) == 400
+    finally:
+        await server.stop()
+
+
+@pytest.mark.asyncio
+async def test_patch_file_priority_rejects_non_integer(tmp_path: Path) -> None:
+    _engine, server, torrent_id, token = await _seed_engine(tmp_path)
+    try:
+        raw = await _request(
+            server,
+            _build_patch_json(
+                f"/torrents/{torrent_id}/files/0",
+                {"priority": "high"},
+                token=token,
+            ),
+        )
+        assert _status_from_response(raw) == 400
+    finally:
+        await server.stop()
+
+
+@pytest.mark.asyncio
+async def test_patch_file_priority_unknown_torrent_returns_404(tmp_path: Path) -> None:
+    _engine, server, _torrent_id, token = await _seed_engine(tmp_path)
+    try:
+        raw = await _request(
+            server,
+            _build_patch_json(
+                "/torrents/nope/files/0",
+                {"priority": 3},
+                token=token,
+            ),
+        )
+        assert _status_from_response(raw) == 404
+    finally:
+        await server.stop()
+
+
+@pytest.mark.asyncio
+async def test_patch_limits_accepts_valid_payload(tmp_path: Path) -> None:
+    _engine, server, torrent_id, token = await _seed_engine(tmp_path)
+    try:
+        raw = await _request(
+            server,
+            _build_patch_json(
+                f"/torrents/{torrent_id}/limits",
+                {"download_bytes_per_second": 1024, "upload_bytes_per_second": 512},
+                token=token,
+            ),
+        )
+        assert _status_from_response(raw) == 204
+    finally:
+        await server.stop()
+
+
+@pytest.mark.asyncio
+async def test_patch_limits_rejects_negative_values(tmp_path: Path) -> None:
+    _engine, server, torrent_id, token = await _seed_engine(tmp_path)
+    try:
+        raw = await _request(
+            server,
+            _build_patch_json(
+                f"/torrents/{torrent_id}/limits",
+                {"download_bytes_per_second": -1, "upload_bytes_per_second": 0},
+                token=token,
+            ),
+        )
+        assert _status_from_response(raw) == 400
+    finally:
+        await server.stop()
+
+
+@pytest.mark.asyncio
+async def test_patch_limits_rejects_missing_fields(tmp_path: Path) -> None:
+    _engine, server, torrent_id, token = await _seed_engine(tmp_path)
+    try:
+        raw = await _request(
+            server,
+            _build_patch_json(
+                f"/torrents/{torrent_id}/limits",
+                {"download_bytes_per_second": 100},
+                token=token,
+            ),
+        )
+        assert _status_from_response(raw) == 400
+    finally:
+        await server.stop()
+
+
+@pytest.mark.asyncio
+async def test_patch_limits_unknown_torrent_returns_404(tmp_path: Path) -> None:
+    _engine, server, _torrent_id, token = await _seed_engine(tmp_path)
+    try:
+        raw = await _request(
+            server,
+            _build_patch_json(
+                "/torrents/nope/limits",
+                {"download_bytes_per_second": 0, "upload_bytes_per_second": 0},
+                token=token,
+            ),
+        )
+        assert _status_from_response(raw) == 404
     finally:
         await server.stop()
 

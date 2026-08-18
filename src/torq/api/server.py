@@ -175,9 +175,18 @@ class APIServer:
         handler, params = resolved
         try:
             return await handler(request, params)
-        except (ValueError, KeyError):
-            # Caller-side errors: surface a generic message. Do NOT echo the
+        except KeyError:
+            # Unknown torrent id — surface a generic 404. Do NOT echo the
             # exception text since handlers may embed sensitive data.
+            return Response(
+                status=404,
+                headers={"Content-Type": "application/json"},
+                body=b'{"error":"not found"}',
+            )
+        except ValueError:
+            # Caller-side validation error: surface a generic 400. Do NOT
+            # echo the exception text since handlers may embed sensitive
+            # data.
             return Response(
                 status=400,
                 headers={"Content-Type": "application/json"},

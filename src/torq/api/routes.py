@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from torq.api.http import HTTPRequest
-from torq.torrents.models import AddOptions, TorrentRef, TorrentStatus
+from torq.torrents.models import AddOptions, TorrentRef, TorrentStatus, TransferLimits
 
 if TYPE_CHECKING:
     from torq.events.bus import EventBus
@@ -157,9 +157,13 @@ def build_router(
     router.add("GET", "/health", _health)
     router.add("GET", "/torrents", _list_torrents(engine))
     router.add("POST", "/torrents", _add_torrent(engine))
+    router.add("GET", "/torrents/{id}", _status_torrent(engine))
     router.add("DELETE", "/torrents/{id}", _remove_torrent(engine))
     router.add("POST", "/torrents/{id}/pause", _pause(engine))
     router.add("POST", "/torrents/{id}/resume", _resume(engine))
+    router.add("POST", "/torrents/{id}/recheck", _recheck(engine))
+    router.add("PATCH", "/torrents/{id}/files/{index}", _set_file_priority(engine))
+    router.add("PATCH", "/torrents/{id}/limits", _set_torrent_limits(engine))
     router.add("GET", "/events", _events(event_bus, authorize))
     return router
 
@@ -174,6 +178,16 @@ def _list_torrents(
     async def handler(_request: HTTPRequest, _params: Mapping[str, str]) -> Response:
         items = await engine.list()
         return json_response([_status_dict(s) for s in items])
+
+    return handler
+
+
+def _status_torrent(
+    engine: TorrentEngine,
+) -> Callable[[HTTPRequest, Mapping[str, str]], Awaitable[Response]]:
+    async def handler(_request: HTTPRequest, params: Mapping[str, str]) -> Response:
+        status = await engine.status(params["id"])
+        return json_response(_status_dict(status))
 
     return handler
 
@@ -241,6 +255,74 @@ def _resume(
 ) -> Callable[[HTTPRequest, Mapping[str, str]], Awaitable[Response]]:
     async def handler(_request: HTTPRequest, params: Mapping[str, str]) -> Response:
         await engine.resume(params["id"])
+        return empty_response(204)
+
+    return handler
+
+
+def _recheck(
+    engine: TorrentEngine,
+) -> Callable[[HTTPRequest, Mapping[str, str]], Awaitable[Response]]:
+    async def handler(_request: HTTPRequest, params: Mapping[str, str]) -> Response:
+        await engine.recheck(params["id"])
+        return empty_response(204)
+
+    return handler
+
+
+def _set_file_priority(
+    engine: TorrentEngine,
+) -> Callable[[HTTPRequest, Mapping[str, str]], Awaitable[Response]]:
+    async def handler(request: HTTPRequest, params: Mapping[str, str]) -> Response:
+        try:
+            payload = json.loads(request.body or b"{}")
+        except json.JSONDecodeError as exc:
+            return json_response({"error": "invalid JSON", "detail": str(exc)}, status=400)
+        if not isinstance(payload, dict):
+            return json_response({"error": "expected JSON object"}, status=400)
+        priority_raw = payload.get("priority")
+        if not isinstance(priority_raw, int) or not 0 <= priority_raw <= 7:
+            return json_response({"error": "priority must be an integer in 0..7"}, status=400)
+        file_index = int(params["index"])
+        await engine.set_file_priority(params["id"], file_index, priority_raw)
+        return empty_response(204)
+
+    return handler
+
+
+def _set_torrent_limits(
+    engine: TorrentEngine,
+) -> Callable[[HTTPRequest, Mapping[str, str]], Awaitable[Response]]:
+    async def handler(request: HTTPRequest, params: Mapping[str, str]) -> Response:
+        try:
+            payload = json.loads(request.body or b"{}")
+        except json.JSONDecodeError as exc:
+            return json_response({"error": "invalid JSON", "detail": str(exc)}, status=400)
+        if not isinstance(payload, dict):
+            return json_response({"error": "expected JSON object"}, status=400)
+        dl_raw = payload.get("download_bytes_per_second")
+        ul_raw = payload.get("upload_bytes_per_second")
+        if not isinstance(dl_raw, int) or not isinstance(ul_raw, int):
+            return json_response(
+                {
+                    "error": (
+                        "download_bytes_per_second and upload_bytes_per_second must be integers"
+                    )
+                },
+                status=400,
+            )
+        if dl_raw < 0 or ul_raw < 0:
+            return json_response(
+                {"error": "rate limits must be non-negative (0 == unlimited)"},
+                status=400,
+            )
+        await engine.set_limits(
+            params["id"],
+            TransferLimits(
+                download_bytes_per_second=dl_raw,
+                upload_bytes_per_second=ul_raw,
+            ),
+        )
         return empty_response(204)
 
     return handler
