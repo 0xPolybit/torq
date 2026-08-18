@@ -46,7 +46,7 @@ coverage.xml
 .torq/
 torq.db
 torq.db-journal
-resume/
-metadata/
-cache/
-logs/
+/resume/
+/metadata/
+/cache/
+/logs/
