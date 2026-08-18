@@ -76,7 +76,7 @@ class FakeEngine:
         status = self._require(torrent_id)
         status.state = TorrentState.DOWNLOADING
 
-    async def remove(self, torrent_id: str, delete_data: bool = False) -> None:  # noqa: ARG002
+    async def remove(self, torrent_id: str, delete_data: bool = False) -> None:
         self._torrents.pop(torrent_id, None)
 
     async def recheck(self, torrent_id: str) -> None:

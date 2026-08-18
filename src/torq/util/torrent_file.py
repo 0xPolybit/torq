@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from torq.errors import InvalidTorrentFileError
-from torq.util.bencode import bencode, bdecode, BencodeDecodeError
+from torq.util.bencode import BencodeDecodeError, bdecode, bencode
 
 MAX_TORRENT_FILE_SIZE = 10 * 1024 * 1024  # 10 MiB
 

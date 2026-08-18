@@ -25,12 +25,12 @@ def bencode(obj: Any) -> bytes:
     if isinstance(obj, bool):
         raise TypeError("bool not supported in bencode (encode as int)")
     if isinstance(obj, int):
-        return f"i{obj}e".encode("utf-8")
+        return f"i{obj}e".encode()
     if isinstance(obj, bytes):
-        return f"{len(obj)}:".encode("utf-8") + obj
+        return f"{len(obj)}:".encode() + obj
     if isinstance(obj, str):
         encoded = obj.encode("utf-8")
-        return f"{len(encoded)}:".encode("utf-8") + encoded
+        return f"{len(encoded)}:".encode() + encoded
     if isinstance(obj, list):
         return b"l" + b"".join(bencode(item) for item in obj) + b"e"
     if isinstance(obj, dict):

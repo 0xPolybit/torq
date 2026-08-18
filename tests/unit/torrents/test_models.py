@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -98,7 +98,7 @@ def test_torrent_status_required_fields() -> None:
 
 
 def test_torrent_full_record() -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     record = Torrent(
         id="abc",
         name="full-record",
