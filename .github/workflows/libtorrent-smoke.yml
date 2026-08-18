@@ -53,7 +53,7 @@ jobs:
       - name: Install libtorrent (Windows)
         if: runner.os == 'Windows'
         shell: bash
-        run: python -m pip install --upgrade pip && python -m pip install libtorrent-rasterbar-wheels
+        run: python -m pip install --upgrade pip && python -m pip install libtorrent
 
       - name: Run spike probe
         shell: bash
