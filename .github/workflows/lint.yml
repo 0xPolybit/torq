@@ -24,11 +24,11 @@ jobs:
         with:
           python-version: "3.12"
       - name: Ruff format check
-        uses: astral-sh/ruff-action@v1
+        uses: astral-sh/ruff-action@v3
         with:
           args: "format --check"
       - name: Ruff lint
-        uses: astral-sh/ruff-action@v1
+        uses: astral-sh/ruff-action@v3
         with:
           args: "check --output-format=github"
 
