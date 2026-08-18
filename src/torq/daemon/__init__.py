@@ -1,0 +1,1 @@
+"""Background daemon that owns the libtorrent session."""
