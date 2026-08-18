@@ -23,7 +23,7 @@ from typing import Any
 # Allow running directly via ``python scripts/make_test_torrent.py``.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from torq.util.bencode import bencode, bdecode
+from torq.util.bencode import bdecode, bencode
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURES_DIR = REPO_ROOT / "tests" / "fixtures" / "torrents"

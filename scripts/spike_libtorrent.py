@@ -145,7 +145,7 @@ def write_resume(libtorrent: object, handle: object, path: Path) -> int:
     # write_resume_data_buf is the modern API; fall back if needed.
     write_fn = getattr(libtorrent, "write_resume_data_buf", None)
     if write_fn is None:  # pragma: no cover - older libtorrent
-        write_fn = getattr(libtorrent, "write_resume_data")
+        write_fn = libtorrent.write_resume_data
     resume_buf = write_fn(handle)
     data = libtorrent.bencode(resume_buf)
     tmp = path.with_suffix(path.suffix + ".tmp")
