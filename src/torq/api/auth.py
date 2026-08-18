@@ -32,6 +32,15 @@ def generate_token(length: int = 32) -> str:
     return secrets.token_urlsafe(length)
 
 
+def _is_valid_token(token: str) -> bool:
+    """Return True if ``token`` looks like a real bearer token."""
+    if not token or len(token) < 16:
+        return False
+    # secrets.token_urlsafe uses only [A-Za-z0-9_-].
+    allowed = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
+    return all(ch in allowed for ch in token)
+
+
 def write_token_file(path: Path, token: str) -> None:
     """Persist the bearer token with owner-only permissions when possible."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -72,8 +81,18 @@ class TokenStore:
         return AuthContext(token=token, token_path=self._path)
 
     def load(self) -> AuthContext:
-        """Read an existing token from disk and remember it."""
+        """Read an existing token from disk and remember it.
+
+        A token that doesn't look like a ``token_urlsafe`` payload (e.g. an
+        empty file, a stray newline, or anything that failed atomic
+        replacement mid-write) is treated as invalid and rotated.
+        """
         token = load_token_file(self._path)
+        if not _is_valid_token(token):
+            # Best-effort rotation; whatever was on disk is suspect.
+            with contextlib.suppress(OSError):
+                self._path.unlink()
+            return self.provision()
         self._token = token
         return AuthContext(token=token, token_path=self._path)
 

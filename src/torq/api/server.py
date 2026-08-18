@@ -179,12 +179,16 @@ class APIServer:
         handler, params = resolved
         try:
             return await handler(request, params)
-        except (RuntimeError, ValueError, KeyError) as exc:
+        except (ValueError, KeyError):
+            # Caller-side errors: surface a generic message. Do NOT echo the
+            # exception text since handlers may embed sensitive data.
             return Response(
                 status=400,
                 headers={"Content-Type": "application/json"},
-                body=('{"error":"' + str(exc).replace('"', '\\"') + '"}').encode("utf-8"),
+                body=b'{"error":"bad request"}',
             )
+        # Anything else is a server fault — fall through to the connection
+        # handler, which logs and returns a generic 500.
 
 
 async def _write_response(
