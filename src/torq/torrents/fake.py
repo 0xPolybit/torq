@@ -8,6 +8,7 @@ integration-test marker instead.
 
 from __future__ import annotations
 
+import builtins
 from pathlib import Path
 
 from torq.torrents.engine import TorrentEngine
@@ -105,7 +106,7 @@ class FakeEngine:
     async def set_global_limits(self, limits: TransferLimits) -> None:
         self.global_limits = limits
 
-    def export_resume(self) -> list[object]:
+    def export_resume(self) -> builtins.list[object]:
         # Fake engine does not persist across restarts.
         return []
 
@@ -118,4 +119,4 @@ class FakeEngine:
 
 
 # Help type checkers see that FakeEngine satisfies the Protocol.
-_: TorrentEngine = FakeEngine()  # type: ignore[assignment]
+_: TorrentEngine = FakeEngine()

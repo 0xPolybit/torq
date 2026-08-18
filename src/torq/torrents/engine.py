@@ -7,8 +7,9 @@ Torq without modification.
 
 from __future__ import annotations
 
+import builtins
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from torq.torrents.models import (
     AddOptions,
@@ -60,7 +61,7 @@ class TorrentEngine(Protocol):
     async def set_global_limits(self, limits: TransferLimits) -> None:
         """Set session-wide rate limits."""
 
-    def export_resume(self) -> list:
+    def export_resume(self) -> builtins.list[Any]:
         """Return a snapshot of resume entries to persist across restarts.
 
         Engines that do not own persistent state may return ``[]``.

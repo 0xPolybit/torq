@@ -367,6 +367,12 @@ class LibtorrentEngine:
         self._session.set_download_rate_limit(int(limits.download_bytes_per_second))
         self._session.set_upload_rate_limit(int(limits.upload_bytes_per_second))
 
+    def export_resume(self) -> builtins.list[Any]:
+        # Resume data roundtrip lands in slice 0.14-followup; the daemon
+        # treats an empty list as "nothing to persist" for now.
+        del self  # silence unused-self on protocols
+        return []
+
 
 # Help type checkers see that LibtorrentEngine satisfies the Protocol.
 # Guarded so the module still imports on machines without libtorrent
