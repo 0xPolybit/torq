@@ -55,6 +55,49 @@ async def test_fake_set_global_limits() -> None:
     assert engine.global_limits == new_limits
 
 
+async def test_fake_set_file_priority_accepts_any_value() -> None:
+    """Fake does not validate the priority range; the real engine does."""
+    engine = FakeEngine()
+    await engine.start()
+    ref = await engine.add_magnet(
+        "magnet:?xt=urn:btih:deadbeef",
+        AddOptions(save_path=Path("/tmp")),
+    )
+    await engine.set_file_priority(ref.id, 0, 4)
+    await engine.set_file_priority(ref.id, 1, 0)
+
+
+async def test_fake_set_file_priority_unknown_id_raises() -> None:
+    engine = FakeEngine()
+    await engine.start()
+    with pytest.raises(KeyError):
+        await engine.set_file_priority("nonexistent", 0, 4)
+
+
+async def test_fake_set_limits() -> None:
+    engine = FakeEngine()
+    await engine.start()
+    ref = await engine.add_magnet(
+        "magnet:?xt=urn:btih:deadbeef",
+        AddOptions(save_path=Path("/tmp")),
+    )
+    await engine.set_limits(
+        ref.id,
+        TransferLimits(download_bytes_per_second=1024, upload_bytes_per_second=512),
+    )
+    # The fake doesn't expose per-torrent limits, but the call must succeed.
+
+
+async def test_fake_set_limits_unknown_id_raises() -> None:
+    engine = FakeEngine()
+    await engine.start()
+    with pytest.raises(KeyError):
+        await engine.set_limits(
+            "nonexistent",
+            TransferLimits(download_bytes_per_second=0, upload_bytes_per_second=0),
+        )
+
+
 async def test_fake_unknown_id_raises() -> None:
     engine = FakeEngine()
     await engine.start()

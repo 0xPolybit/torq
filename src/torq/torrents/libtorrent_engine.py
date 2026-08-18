@@ -6,8 +6,8 @@ but constructing :class:`LibtorrentEngine` fails fast with
 :class:`LibtorrentNotAvailableError`. This lets unit tests, linters, and
 CI runners without libtorrent still import everything else.
 
-Slice 0.8 implements add + status + list. Pause/resume/remove/recheck and
-file priority / limits land in slices 0.9 and 0.10.
+Slices 0.8-0.10 implement add + status + list, pause/resume/remove/recheck,
+and file priorities + transfer limits. Categories and tags land in 0.11.
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ from torq.torrents.models import (
     TorrentStatus,
     TransferLimits,
 )
+from torq.torrents.priorities import FilePriority
 from torq.util.magnet import parse_magnet
 
 try:
@@ -87,6 +88,20 @@ def map_state(status: Any, lt: Any) -> TorrentState:
             return TorrentState.STALLED_DOWNLOAD
         return TorrentState.DOWNLOADING
     return TorrentState.QUEUED
+
+
+def _num_files(ti: Any) -> int:
+    """Return the file count for a libtorrent torrent_info, defensively."""
+    for attr in ("num_files", "files"):
+        getter = getattr(ti, attr, None)
+        if callable(getter):
+            try:
+                return int(getter())
+            except Exception:
+                continue
+        if isinstance(getter, int):
+            return getter
+    return 0
 
 
 def _safe_name(handle: Any) -> str:
@@ -233,6 +248,22 @@ class LibtorrentEngine:
         params.save_path = str(options.save_path)
         if options.start_paused:
             params.flags = int(getattr(self._lt.torrent_flags, "paused", 0))
+        if options.file_priorities:
+            file_count = _num_files(ti)
+            priorities = [int(FilePriority.NORMAL)] * file_count
+            for entry in options.file_priorities:
+                if len(entry) != 2:
+                    msg = f"file priority entry must be (file_index, priority), got {entry}"
+                    raise ValueError(msg)
+                file_index, priority = entry
+                if file_index < 0 or file_index >= file_count:
+                    msg = f"file index {file_index} out of range (have {file_count} files)"
+                    raise ValueError(msg)
+                if not 0 <= priority <= 7:
+                    msg = f"file priority must be in 0..7, got {priority}"
+                    raise ValueError(msg)
+                priorities[file_index] = priority
+            params.file_priorities = priorities
         handle = self._session.add_torrent(params)
         info_hash_v1 = str(ti.info_hash()) if ti.info_hash() else ""
         if info_hash_v1:
@@ -282,21 +313,36 @@ class LibtorrentEngine:
             return []
         return [_build_status(h, self._lt) for h in self._handles.values()]
 
-    # -- slice 0.10+ stubs -------------------------------------------------
+    # -- file priorities + transfer limits --------------------------------
 
     async def set_file_priority(
         self, torrent_id: str, file_index: int, priority: int
     ) -> None:
-        msg = "LibtorrentEngine.set_file_priority lands in slice 0.10"
-        raise NotImplementedError(msg)
+        if not 0 <= priority <= 7:
+            msg = f"file priority must be in 0..7, got {priority}"
+            raise ValueError(msg)
+        self._require_started()
+        handle = self._get_handle(torrent_id)
+        handle.file_priority(file_index, priority)
 
     async def set_limits(self, torrent_id: str, limits: TransferLimits) -> None:
-        msg = "LibtorrentEngine.set_limits lands in slice 0.10"
-        raise NotImplementedError(msg)
+        if limits.download_bytes_per_second < 0 or limits.upload_bytes_per_second < 0:
+            msg = "transfer limits must be non-negative (0 == unlimited)"
+            raise ValueError(msg)
+        self._require_started()
+        handle = self._get_handle(torrent_id)
+        handle.set_download_limit(int(limits.download_bytes_per_second))
+        handle.set_upload_limit(int(limits.upload_bytes_per_second))
 
     async def set_global_limits(self, limits: TransferLimits) -> None:
-        msg = "LibtorrentEngine.set_global_limits lands in slice 0.10"
-        raise NotImplementedError(msg)
+        if limits.download_bytes_per_second < 0 or limits.upload_bytes_per_second < 0:
+            msg = "transfer limits must be non-negative (0 == unlimited)"
+            raise ValueError(msg)
+        if self._session is None:
+            msg = "engine not started"
+            raise RuntimeError(msg)
+        self._session.set_download_rate_limit(int(limits.download_bytes_per_second))
+        self._session.set_upload_rate_limit(int(limits.upload_bytes_per_second))
 
 
 # Help type checkers see that LibtorrentEngine satisfies the Protocol.

@@ -15,7 +15,8 @@ lt = pytest.importorskip("libtorrent")
 from torq.torrents.libtorrent_engine import (  # noqa: E402
     LibtorrentEngine,
 )
-from torq.torrents.models import AddOptions  # noqa: E402
+from torq.torrents.models import AddOptions, TransferLimits  # noqa: E402
+from torq.torrents.priorities import FilePriority  # noqa: E402
 
 # A public magnet (Debian netinst ISO). The test does not depend on
 # download completion — it only validates that the magnet was added.
@@ -201,3 +202,141 @@ async def test_engine_add_magnet_with_start_paused(
         "stalled_upload",
         "metadata",
     }
+
+
+# -- file priorities + transfer limits -----------------------------------
+
+
+async def test_engine_set_file_priority_accepts_known_value(
+    engine: LibtorrentEngine, tmp_path: Path
+) -> None:
+    """set_file_priority accepts a valid 0..7 priority on a known file."""
+    # Use the test fixture torrent so we have a known file index and
+    # so the metadata is available immediately.
+    from tests.integration.torrents.test_bug_check_1 import TORRENT_PATH
+
+    ref = await engine.add_torrent_file(
+        TORRENT_PATH, AddOptions(save_path=tmp_path)
+    )
+    await engine.set_file_priority(ref.id, 0, int(FilePriority.HIGH))
+    # No assertion on internals — the call must simply not raise.
+
+
+async def test_engine_set_file_priority_rejects_out_of_range(
+    engine: LibtorrentEngine, tmp_path: Path
+) -> None:
+    """set_file_priority validates the priority range."""
+    from tests.integration.torrents.test_bug_check_1 import TORRENT_PATH
+
+    ref = await engine.add_torrent_file(
+        TORRENT_PATH, AddOptions(save_path=tmp_path)
+    )
+    with pytest.raises(ValueError):
+        await engine.set_file_priority(ref.id, 0, 8)
+    with pytest.raises(ValueError):
+        await engine.set_file_priority(ref.id, 0, -1)
+
+
+async def test_engine_set_file_priority_unknown_id_raises(
+    engine: LibtorrentEngine,
+) -> None:
+    with pytest.raises(KeyError):
+        await engine.set_file_priority("deadbeef" * 5, 0, 4)
+
+
+async def test_engine_set_limits_per_torrent(
+    engine: LibtorrentEngine, tmp_path: Path
+) -> None:
+    from tests.integration.torrents.test_bug_check_1 import TORRENT_PATH
+
+    ref = await engine.add_torrent_file(
+        TORRENT_PATH, AddOptions(save_path=tmp_path)
+    )
+    await engine.set_limits(
+        ref.id,
+        TransferLimits(download_bytes_per_second=200_000, upload_bytes_per_second=100_000),
+    )
+    # Look it up — the call must succeed and the torrent must remain listed.
+    statuses = await engine.list()
+    assert any(s.id == ref.id for s in statuses)
+
+
+async def test_engine_set_limits_rejects_negative(
+    engine: LibtorrentEngine, tmp_path: Path
+) -> None:
+    from tests.integration.torrents.test_bug_check_1 import TORRENT_PATH
+
+    ref = await engine.add_torrent_file(
+        TORRENT_PATH, AddOptions(save_path=tmp_path)
+    )
+    with pytest.raises(ValueError):
+        await engine.set_limits(
+            ref.id,
+            TransferLimits(download_bytes_per_second=-1, upload_bytes_per_second=0),
+        )
+
+
+async def test_engine_set_limits_unknown_id_raises(
+    engine: LibtorrentEngine,
+) -> None:
+    with pytest.raises(KeyError):
+        await engine.set_limits(
+            "deadbeef" * 5,
+            TransferLimits(download_bytes_per_second=0, upload_bytes_per_second=0),
+        )
+
+
+async def test_engine_set_global_limits(
+    engine: LibtorrentEngine,
+) -> None:
+    """Global limits apply to the session and don't raise."""
+    await engine.set_global_limits(
+        TransferLimits(download_bytes_per_second=1_000_000, upload_bytes_per_second=500_000)
+    )
+
+
+async def test_engine_set_global_limits_rejects_negative(
+    engine: LibtorrentEngine,
+) -> None:
+    with pytest.raises(ValueError):
+        await engine.set_global_limits(
+            TransferLimits(download_bytes_per_second=-1, upload_bytes_per_second=0)
+        )
+
+
+async def test_engine_add_torrent_file_with_file_priorities(
+    engine: LibtorrentEngine, tmp_path: Path
+) -> None:
+    """file_priorities passed at add time are accepted."""
+    from tests.integration.torrents.test_bug_check_1 import TORRENT_PATH
+
+    ref = await engine.add_torrent_file(
+        TORRENT_PATH,
+        AddOptions(save_path=tmp_path, file_priorities=((0, 0),)),  # don't download
+    )
+    status = await engine.status(ref.id)
+    assert status.id == ref.id
+
+
+async def test_engine_add_torrent_file_rejects_invalid_file_priority(
+    engine: LibtorrentEngine, tmp_path: Path
+) -> None:
+    from tests.integration.torrents.test_bug_check_1 import TORRENT_PATH
+
+    with pytest.raises(ValueError):
+        await engine.add_torrent_file(
+            TORRENT_PATH,
+            AddOptions(save_path=tmp_path, file_priorities=((0, 99),)),
+        )
+
+
+async def test_engine_add_torrent_file_rejects_out_of_range_file_index(
+    engine: LibtorrentEngine, tmp_path: Path
+) -> None:
+    from tests.integration.torrents.test_bug_check_1 import TORRENT_PATH
+
+    with pytest.raises(ValueError):
+        await engine.add_torrent_file(
+            TORRENT_PATH,
+            AddOptions(save_path=tmp_path, file_priorities=((99, 4),)),
+        )
