@@ -12,9 +12,11 @@ and file priorities + transfer limits. Categories and tags land in 0.11.
 
 from __future__ import annotations
 
+import builtins
 from pathlib import Path
 from typing import Any
 
+from torq.torrents.alerts import translate as translate_alert
 from torq.torrents.engine import TorrentEngine
 from torq.torrents.models import (
     AddOptions,
@@ -312,6 +314,27 @@ class LibtorrentEngine:
         if self._session is None:
             return []
         return [_build_status(h, self._lt) for h in self._handles.values()]
+
+    # -- alerts / events ---------------------------------------------------
+
+    def pop_alerts(self) -> builtins.list[Any]:
+        """Drain queued libtorrent alerts and return them as Torq events.
+
+        The caller is expected to call this on a periodic tick (e.g. from
+        the daemon's main loop). It returns an empty list when the engine
+        has not been started.
+        """
+        if self._session is None:
+            return []
+        events: list[Any] = []
+        try:
+            for alert in self._session.pop_alerts():
+                events.extend(translate_alert(alert, self._handles))
+        except Exception:
+            # Defensive: libtorrent can raise if the session is half-
+            # torn-down. Skip the cycle rather than crash the daemon.
+            return []
+        return events
 
     # -- file priorities + transfer limits --------------------------------
 
