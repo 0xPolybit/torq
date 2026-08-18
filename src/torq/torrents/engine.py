@@ -59,3 +59,10 @@ class TorrentEngine(Protocol):
 
     async def set_global_limits(self, limits: TransferLimits) -> None:
         """Set session-wide rate limits."""
+
+    def export_resume(self) -> list:
+        """Return a snapshot of resume entries to persist across restarts.
+
+        Engines that do not own persistent state may return ``[]``.
+        """
+        raise NotImplementedError

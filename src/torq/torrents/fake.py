@@ -105,6 +105,10 @@ class FakeEngine:
     async def set_global_limits(self, limits: TransferLimits) -> None:
         self.global_limits = limits
 
+    def export_resume(self) -> list[object]:
+        # Fake engine does not persist across restarts.
+        return []
+
     def _require(self, torrent_id: str) -> TorrentStatus:
         try:
             return self._torrents[torrent_id]
