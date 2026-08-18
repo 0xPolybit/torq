@@ -1,0 +1,60 @@
+name: libtorrent-smoke
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: libtorrent-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: libtorrent probe (${{ matrix.os }} / py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python-version: "3.12"
+          - os: ubuntu-latest
+            python-version: "3.13"
+          - os: macos-latest
+            python-version: "3.12"
+          - os: macos-latest
+            python-version: "3.13"
+          - os: windows-latest
+            python-version: "3.12"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install libtorrent (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-libtorrent
+
+      - name: Install libtorrent (macOS)
+        if: runner.os == 'macOS'
+        run: brew install libtorrent-rasterbar
+
+      - name: Install libtorrent (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: python -m pip install --upgrade pip && python -m pip install libtorrent-rasterbar-wheels
+
+      - name: Run spike probe
+        shell: bash
+        run: python scripts/spike_libtorrent.py --probe-only
