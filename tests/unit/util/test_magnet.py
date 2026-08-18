@@ -19,7 +19,8 @@ BTMH_HASH = "1220" + "f" * 64  # placeholder v2 hash (32 bytes hex-encoded)
 
 def _well_formed_magnet() -> str:
     return (
-        "magnet:?xt=urn:btih:" + HEX_HASH
+        "magnet:?xt=urn:btih:"
+        + HEX_HASH
         + "&dn=debian-12.5.0-amd64-netinst.iso"
         + "&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce"
         + "&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A6969%2Fannounce"
@@ -63,8 +64,10 @@ def test_base32_btih_is_decoded_to_hex() -> None:
 
 def test_xt_indexed_form_supported() -> None:
     uri = (
-        "magnet:?xt.1=urn:btih:" + HEX_HASH
-        + "&xt.2=urn:btmh:" + BTMH_HASH.lstrip("1220")  # 64-char placeholder
+        "magnet:?xt.1=urn:btih:"
+        + HEX_HASH
+        + "&xt.2=urn:btmh:"
+        + BTMH_HASH.removeprefix("1220")  # 64-char placeholder
         + "&dn=hybrid"
     )
     # Provide an actual 64-hex btmh:
@@ -90,7 +93,8 @@ def test_primary_id_prefers_v1() -> None:
 
 def test_xs_and_as_are_captured() -> None:
     uri = (
-        "magnet:?xt=urn:btih:" + HEX_HASH
+        "magnet:?xt=urn:btih:"
+        + HEX_HASH
         + "&xs=http%3A%2F%2Fexample.invalid%2F.torrent"
         + "&as=http%3A%2F%2Ffallback.invalid%2F.torrent"
     )
@@ -183,7 +187,14 @@ def test_is_valid_magnet_returns_true_for_good_input() -> None:
 
 @pytest.mark.parametrize(
     "c",
-    list(string.ascii_uppercase.replace("A", "").replace("B", "").replace("C", "").replace("D", "").replace("E", "").replace("F", "")),
+    list(
+        string.ascii_uppercase.replace("A", "")
+        .replace("B", "")
+        .replace("C", "")
+        .replace("D", "")
+        .replace("E", "")
+        .replace("F", "")
+    ),
 )
 def test_is_hex_rejects_non_hex_uppercase(c: str) -> None:
     """Hex uppercase characters outside A-F must not be accepted."""

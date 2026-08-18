@@ -10,11 +10,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 
-class TorrentState(str, Enum):
+class TorrentState(StrEnum):
     """Torq-owned torrent states (PLAN §7.2).
 
     The string values are the stable wire representation persisted in
@@ -34,7 +34,7 @@ class TorrentState(str, Enum):
     REMOVED = "removed"
 
 
-class SourceType(str, Enum):
+class SourceType(StrEnum):
     """How a torrent was added."""
 
     MAGNET = "magnet"
